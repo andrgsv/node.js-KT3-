@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Чат</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="auth" class="card">
+        <h2>Вход в чат</h2>
+        <input type="text" id="nameInput" placeholder="Ваше имя" maxlength="20">
+        <div class="colors">
+            <label><input type="radio" name="color" value="#e74c3c" checked><span style="background:#e74c3c"></span></label>
+            <label><input type="radio" name="color" value="#3498db"><span style="background:#3498db"></span></label>
+            <label><input type="radio" name="color" value="#2ecc71"><span style="background:#2ecc71"></span></label>
+            <label><input type="radio" name="color" value="#f1c40f"><span style="background:#f1c40f"></span></label>
+            <label><input type="radio" name="color" value="#9b59b6"><span style="background:#9b59b6"></span></label>
+        </div>
+        <button onclick="join()">Войти</button>
+    </div>
+
+    <div id="chat" class="hidden">
+        <div id="header">
+            <h2>Чат <span id="online">0</span> онлайн</h2>
+            <div id="users"></div>
+        </div>
+        <div id="messages"></div>
+        <div id="input">
+            <input type="text" id="msgInput" placeholder="Введите сообщение..." autocomplete="off">
+            <button onclick="send()">Отправить</button>
+        </div>
+    </div>
+
+    <script>
+        const ws = new WebSocket('ws://' + location.host);
+        let myName = '';
+
+        ws.onmessage = function(e) {
+            const msg = JSON.parse(e.data);
+
+            if (msg.type === 'welcome') {
+                document.getElementById('auth').classList.add('hidden');
+                document.getElementById('chat').classList.remove('hidden');
+                addMessage(msg.text, '#95a5a6');
+            }
+            if (msg.type === 'system') {
+                addMessage(msg.text, '#95a5a6');
+            }
+            if (msg.type === 'chat') {
+                addMessage(`${msg.name}: ${msg.text}`, msg.color);
+            }
+            if (msg.type === 'users') {
+                const list = document.getElementById('users');
+                list.innerHTML = msg.list.map(u => 
+                    `<span style="color:${u.color}">• ${u.name}</span>`
+                ).join(' ');
+                document.getElementById('online').textContent = msg.list.length;
+            }
+        };
+
+        function join() {
+            const name = document.getElementById('nameInput').value.trim();
+            const color = document.querySelector('input[name="color"]:checked').value;
+            if (name && name.length > 1) {
+                myName = name;
+                ws.send(JSON.stringify({ type: 'join', name, color }));
+            }
+        }
+
+        function send() {
+            const input = document.getElementById('msgInput');
+            const text = input.value.trim();
+            if (text) {
+                ws.send(JSON.stringify({ type: 'chat', text }));
+                input.value = '';
+            }
+        }
+
+        function addMessage(text, color = '#000') {
+            const div = document.createElement('div');
+            div.textContent = text;
+            if (color) div.style.color = color;
+            document.getElementById('messages').appendChild(div);
+            div.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        document.getElementById('msgInput').addEventListener('keypress', e => {
+            if (e.key === 'Enter') send();
+        });
+        document.getElementById('nameInput').addEventListener('keypress', e => {
+            if (e.key === 'Enter') join();
+        });
+    </script>
+</body>
+</html>
